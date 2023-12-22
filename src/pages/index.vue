@@ -15,7 +15,7 @@
             :precision="0"
             placeholder="最小1个, 最大150个"
           />
-          <Button @click="createSubAccountHandler" :loading="creating">初始化子账户</Button>
+          <Button @click="createSubAccountHandler" :loading="creating">创建子账户</Button>
         </div>
         <div class="flex gap-2 items-center">
           <span>当前子账户数: {{ currentSubAccountAmount }}</span>
