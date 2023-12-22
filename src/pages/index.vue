@@ -19,7 +19,7 @@
         </div>
         <div class="flex gap-2 items-center">
           <span>当前子账户数: {{ currentSubAccountAmount }}</span>
-          <Button @click="checkSubAccountHandler">查询子账户</Button>
+          <Button @click="checkSubAccountHandler" :loading="checking">查询子账户</Button>
         </div>
       </div>
     </FormItem>
@@ -29,7 +29,11 @@
       <div
         class="flex-col gap-1 p-4 rounded-2 border-1 bordedr-solid border-accent bg-secondary/10 max-h-100 overflow-y-auto mb-3"
       >
-        <span v-for="(account, index) in subAccountsList" :key="index">
+        <span
+          class="flex justify-between w-full hover:bg-secondary/40 transion-all p-2"
+          v-for="(account, index) in subAccountsList"
+          :key="index"
+        >
           <a
             class="underline"
             target="_blank"
@@ -37,12 +41,20 @@
           >
             {{ account }}
           </a>
+          <div class="flex-col">
+            <span
+              v-for="(ticker, tid) in Object.keys(nftAmountListWithIndex[index]?.tokenMap || {})"
+              :key="tid"
+            >
+              {{ ticker }}: {{ nftAmountListWithIndex[index]?.tokenMap?.[ticker] }}
+            </span>
+          </div>
         </span>
       </div>
     </div>
 
-    <FormItem label="归集">
-      <Button @click="message.info('开发中, Coming Soon')">归集铭文到主帐号</Button>
+    <FormItem label="" v-if="subAccountsList.length > 0">
+      <Button @click="gatherHandler" :loading="gathering">一键归集所有子账号铭文到主帐号</Button>
     </FormItem>
 
     <!-- <span>Gas * account, 1 apt 做底</span> -->
@@ -58,7 +70,9 @@
         :max="currentSubAccountAmount"
       />
     </FormItem>
-    <FormItem label="同时mint的每个子账户, 在每个Epoch执行的Mint次数">
+    <FormItem
+      label="子账户在每个 Epoch 中 Mint 的次数 （每个 Epoch 发送 txn 数量 =  同时mint的子账户数 * 次数）"
+    >
       <Input v-model:value="mintArgs.mintSubAmountPerAccountInOneEpoch" :min="1" />
     </FormItem>
 
@@ -79,10 +93,19 @@
   import { sleep } from '@/utils';
   import { Button, Form, FormItem, Input, InputNumber, Textarea, message } from 'ant-design-vue';
   import BigNumber from 'bignumber.js';
+  import { Promise } from 'bluebird';
   import dayjs from 'dayjs';
+
   const logs = ref<string[]>([]);
-  const { createSubAccount, checkSubAccount, getSubAccount, mint, getInscriptionConf } =
-    useContract();
+  const {
+    createSubAccount,
+    checkSubAccount,
+    getSubAccount,
+    getOwnersNFTs,
+    mint,
+    getInscriptionConf,
+    gatherSubAccount,
+  } = useContract();
 
   const privateKeyString = ref('');
   const currentSubAccountAmount = ref(0);
@@ -248,17 +271,92 @@
   };
 
   const subAccountsList = ref<any[]>([]);
+  const checking = ref(false);
   const checkSubAccountHandler = async () => {
+    if (checking.value) return;
     if (!privateKeyString.value) {
       return message.error('请填入私钥');
     }
 
-    const result: any = await checkSubAccount(privateKeyString.value);
-    currentSubAccountAmount.value = result[0];
+    try {
+      checking.value = true;
+      const result: any = await checkSubAccount(privateKeyString.value);
+      currentSubAccountAmount.value = result[0];
 
-    if (currentSubAccountAmount.value > 0) {
-      const subAccountsResult: any = await getSubAccount(privateKeyString.value);
-      subAccountsList.value = subAccountsResult[0];
+      if (currentSubAccountAmount.value > 0) {
+        const subAccountsResult: any = await getSubAccount(privateKeyString.value);
+        subAccountsList.value = subAccountsResult[0];
+        await nftsAmountOfAddress();
+      }
+
+      message.success('查询子账户结果更新成功');
+    } catch (e: any) {
+      message.error(e.message);
+    } finally {
+      checking.value = false;
+    }
+  };
+
+  const nftAmountListWithIndex = ref<any[]>([]);
+  const nftsAmountOfAddress = async () => {
+    const result: any = await Promise.map(
+      subAccountsList.value,
+      (subAccountAddress: string) => {
+        return getOwnersNFTs(subAccountAddress);
+      },
+      { concurrency: 10 },
+    );
+    nftAmountListWithIndex.value = result.reduce((prev: any, current: any) => {
+      let token_data_ids: string[] = [];
+      let tokenMap: any = {};
+      current?.data?.current_token_datas_v2.forEach((data: any) => {
+        token_data_ids.push(data.token_data_id);
+
+        if (!tokenMap[data.token_properties.tick]) {
+          tokenMap[data.token_properties.tick] = 0;
+        }
+
+        tokenMap[data.token_properties.tick] = new BigNumber(
+          tokenMap[data.token_properties.tick] || 0,
+        )
+          .plus(data.token_properties.amt)
+          .toNumber();
+      });
+      let data = {
+        token_data_ids,
+        tokenMap,
+      };
+      return [...prev, data];
+    }, []);
+  };
+
+  const gathering = ref(false);
+  const gatherHandler = async () => {
+    if (gathering.value) return;
+    if (!privateKeyString.value) {
+      return message.error('请填入私钥');
+    }
+
+    try {
+      gathering.value = true;
+
+      let payload: any = { indexs: [], nfts: [] };
+
+      subAccountsList.value.forEach((_: string, index: number) => {
+        console.log(nftAmountListWithIndex.value[index]);
+        if (nftAmountListWithIndex.value[index]?.token_data_ids?.length > 0) {
+          payload.indexs.push(index);
+          payload.nfts.push(nftAmountListWithIndex.value[index]?.token_data_ids);
+        }
+      });
+
+      await gatherSubAccount(privateKeyString.value, payload);
+      message.success('归集成功');
+      checkSubAccountHandler();
+    } catch (e: any) {
+      message.error(e.message);
+    } finally {
+      gathering.value = false;
     }
   };
 </script>

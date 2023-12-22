@@ -20,6 +20,7 @@
     "ant-design-vue": "4.0.7",
     "axios": "^1.6.2",
     "bignumber.js": "^9.1.2",
+    "bluebird": "^3.7.2",
     "dayjs": "^1.11.10",
     "lodash-es": "4.17.21",
     "pinia": "2.1.7",
@@ -28,6 +29,7 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.5.42",
     "@types/lodash-es": "4.17.11",
     "@types/node": "^20.9.0",
     "@types/numeral": "^2.0.5",
@@ -51,4 +53,3 @@
     "vue-tsc": "^1.8.22"
   }
 }
-
