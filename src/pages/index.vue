@@ -24,32 +24,40 @@
       </div>
     </FormItem>
 
-    <div class="flex-col gap-1" v-if="subAccountsList.length > 0">
+    <div class="flex-col gap-1 w-full" v-if="subAccountsList.length > 0">
       <span>子账户列表:</span>
-      <div
-        class="flex-col gap-1 p-4 rounded-2 border-1 bordedr-solid border-accent bg-secondary/10 max-h-100 overflow-y-auto mb-3"
-      >
-        <span
-          class="flex justify-between w-full hover:bg-secondary/40 transion-all p-2"
-          v-for="(account, index) in subAccountsList"
-          :key="index"
+      <div class="flex gap-2 w-full">
+        <div
+          class="flex-col flex-1 gap-1 p-4 rounded-2 border-1 bordedr-solid border-accent bg-secondary/10 max-h-100 overflow-y-auto mb-3"
         >
-          <a
-            class="underline"
-            target="_blank"
-            :href="`https://explorer.aptoslabs.com/account/${account}?network=${network}`"
+          <span
+            class="flex justify-between w-full hover:bg-secondary/40 transion-all p-2"
+            v-for="(account, index) in subAccountsList"
+            :key="index"
           >
-            {{ account }}
-          </a>
-          <div class="flex-col">
-            <span
-              v-for="(ticker, tid) in Object.keys(nftAmountListWithIndex[index]?.tokenMap || {})"
-              :key="tid"
+            <a
+              class="underline"
+              target="_blank"
+              :href="`https://explorer.aptoslabs.com/account/${account}?network=${network}`"
             >
-              {{ ticker }}: {{ nftAmountListWithIndex[index]?.tokenMap?.[ticker] }}
-            </span>
-          </div>
-        </span>
+              {{ account }}
+            </a>
+            <div class="flex-col">
+              <span
+                v-for="(ticker, tid) in Object.keys(nftAmountListWithIndex[index]?.tokenMap || {})"
+                :key="tid"
+              >
+                {{ ticker }}: {{ nftAmountListWithIndex[index]?.tokenMap?.[ticker] }}
+              </span>
+            </div>
+          </span>
+        </div>
+        <div class="flex-col w-40">
+          <span class="mb-2">当前子账户铭文总数:</span>
+          <span v-for="name in Object.keys(nftAmountSummary)" :key="name">
+            {{ name }}: {{ new BigNumber(nftAmountSummary[name] || 0).toFormat() }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -280,9 +288,11 @@
 
     try {
       checking.value = true;
+      currentSubAccountAmount.value = 0;
       const result: any = await checkSubAccount(privateKeyString.value);
       currentSubAccountAmount.value = result[0];
 
+      subAccountsList.value = [];
       if (currentSubAccountAmount.value > 0) {
         const subAccountsResult: any = await getSubAccount(privateKeyString.value);
         subAccountsList.value = subAccountsResult[0];
@@ -298,6 +308,20 @@
   };
 
   const nftAmountListWithIndex = ref<any[]>([]);
+  const nftAmountSummary = computed(() => {
+    let NFTMap = nftAmountListWithIndex.value.reduce((prev: any, current: any) => {
+      Object.keys(current.tokenMap).forEach((tick: string) => {
+        if (!prev[tick]) {
+          prev[tick] = 0;
+        }
+
+        prev[tick] = new BigNumber(prev[tick] || 0).plus(current.tokenMap[tick]).toNumber();
+      });
+      return prev;
+    }, {});
+
+    return NFTMap;
+  });
   const nftsAmountOfAddress = async () => {
     const result: any = await Promise.map(
       subAccountsList.value,
