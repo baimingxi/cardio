@@ -147,7 +147,9 @@
     ) {
       try {
         await mintHandler();
-
+      } catch (e: any) {
+        addLogHanlder(e.message);
+      } finally {
         newTokenConf = await getInscriptionConf(mintArgs.value.tokenName);
         addLogHanlder(
           '当前Epoch: ' +
@@ -155,8 +157,6 @@
             ', 总共Epoch个数: ' +
             newTokenConf[0].epochCount,
         );
-      } catch (e: any) {
-        addLogHanlder(e.message);
       }
     } else {
       // current epoch 0 + 1,  epoch count 1
