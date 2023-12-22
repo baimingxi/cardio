@@ -1,5 +1,5 @@
 import axios from '@/utils/axios';
-import { Account, Aptos, AptosConfig, Ed25519PrivateKey } from '@aptos-labs/ts-sdk';
+import { Account, AccountAddress, Aptos, AptosConfig, Ed25519PrivateKey } from '@aptos-labs/ts-sdk';
 
 const APT20_CONTRACT_ADDRESS = import.meta.env.VITE_APP_APT20_CONTRACT_ADDRESS;
 const CONTRACT_ADDRESS = import.meta.env.VITE_APP_CONTRACT_ADDRESS;
@@ -143,11 +143,16 @@ const useContract = () => {
   };
 
   const getOwnersNFTs = async (owner: string) => {
+    if (!owner) {
+      throw new Error('owner is required');
+    }
+
+    const addr = AccountAddress.fromString(owner).toStringLong();
     return await axios.post(import.meta.env.VITE_APP_GRAPHQL_ENDPOINT, {
       opertationName: 'MyQuery',
       query: `query MyQuery {
         current_token_datas_v2(
-          where: {current_token_ownership: {owner_address: {_eq: "${owner}"}, amount: {_gt: "0"}}}
+          where: {current_token_ownership: {owner_address: {_eq: "${addr}"}, amount: {_gt: "0"}}}
         ) {
           token_data_id
           token_properties
