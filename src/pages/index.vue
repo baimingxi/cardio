@@ -197,7 +197,7 @@
       return;
     }
 
-    runMint();
+    return runMint();
   };
 
   const minting = ref(false);
