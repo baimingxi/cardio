@@ -24,9 +24,9 @@
       </div>
     </FormItem>
 
-    <!-- <FormItem label="归集">
-      <Button>归集铭文到主帐号</Button>
-    </FormItem> -->
+    <FormItem label="归集">
+      <Button @click="message.info('开发中, Coming Soon')">归集铭文到主帐号</Button>
+    </FormItem>
 
     <!-- <span>Gas * account, 1 apt 做底</span> -->
 
