@@ -24,6 +24,23 @@
       </div>
     </FormItem>
 
+    <div class="flex-col gap-1" v-if="subAccountsList.length > 0">
+      <span>子账户列表:</span>
+      <div
+        class="flex-col gap-1 p-4 rounded-2 border-1 bordedr-solid border-accent bg-secondary/10 max-h-100 overflow-y-auto mb-3"
+      >
+        <span v-for="(account, index) in subAccountsList" :key="index">
+          <a
+            class="underline"
+            target="_blank"
+            :href="`https://explorer.aptoslabs.com/account/${account}?network=${network}`"
+          >
+            {{ account }}
+          </a>
+        </span>
+      </div>
+    </div>
+
     <FormItem label="归集">
       <Button @click="message.info('开发中, Coming Soon')">归集铭文到主帐号</Button>
     </FormItem>
@@ -63,7 +80,6 @@
   import { Button, Form, FormItem, Input, InputNumber, Textarea, message } from 'ant-design-vue';
   import BigNumber from 'bignumber.js';
   import dayjs from 'dayjs';
-
   const logs = ref<string[]>([]);
   const { createSubAccount, checkSubAccount, getSubAccount, mint, getInscriptionConf } =
     useContract();
@@ -71,6 +87,7 @@
   const privateKeyString = ref('');
   const currentSubAccountAmount = ref(0);
   const initializeAmountOfSubAccount = ref(0);
+  const network = import.meta.env.VITE_APP_NETWORK;
 
   const mintArgs = ref<any>({
     tokenName: '',
@@ -230,6 +247,7 @@
     logs.value = [...logs.value];
   };
 
+  const subAccountsList = ref<any[]>([]);
   const checkSubAccountHandler = async () => {
     if (!privateKeyString.value) {
       return message.error('请填入私钥');
@@ -240,7 +258,7 @@
 
     if (currentSubAccountAmount.value > 0) {
       const subAccountsResult: any = await getSubAccount(privateKeyString.value);
-      console.log(subAccountsResult);
+      subAccountsList.value = subAccountsResult[0];
     }
   };
 </script>
