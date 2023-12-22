@@ -126,7 +126,7 @@
   // 3. if currentTime > endtime, goto 1
 
   const epochGapSec = 2;
-  const runMint = async () => {
+  const runMint = async (): Promise<any> => {
     const tokenConf: any = await getInscriptionConf(mintArgs.value.tokenName);
     let newTokenConf: any = null;
     console.log(
