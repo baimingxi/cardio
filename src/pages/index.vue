@@ -1,7 +1,8 @@
 <template>
   <Form layout="vertical">
     <FormItem label="主网钱包私钥">
-      <Input v-model:value="privateKeyString" />
+      <Input v-model:value="privateKeyString" type="password" />
+      <div class="mt-1">私钥: {{ ShortAddress(privateKeyString) }}</div>
     </FormItem>
     <FormItem label="初始化子账户">
       <div class="flex-col gap-2">
@@ -62,7 +63,17 @@
     </div>
 
     <FormItem label="" v-if="subAccountsList.length > 0">
-      <Button @click="gatherHandler" :loading="gathering">一键归集所有子账号铭文到主帐号</Button>
+      <span>一键归集所有子账号铭文到主帐号</span>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          @click="gatherHandler(name)"
+          :loading="gathering"
+          v-for="name in Object.keys(nftAmountSummary)"
+          :key="name"
+        >
+          {{ name }}的铭文
+        </Button>
+      </div>
     </FormItem>
 
     <!-- <span>Gas * account, 1 apt 做底</span> -->
@@ -98,7 +109,7 @@
 
 <script lang="ts" setup>
   import useContract from '@/hooks/useContract';
-  import { sleep } from '@/utils';
+  import { ShortAddress, sleep } from '@/utils';
   import { Button, Form, FormItem, Input, InputNumber, Textarea, message } from 'ant-design-vue';
   import BigNumber from 'bignumber.js';
   import { Promise } from 'bluebird';
@@ -331,20 +342,25 @@
       { concurrency: 10 },
     );
     nftAmountListWithIndex.value = result.reduce((prev: any, current: any) => {
-      let token_data_ids: string[] = [];
+      let token_data_ids: any[] = [];
       let tokenMap: any = {};
       current?.data?.current_token_datas_v2.forEach((data: any) => {
-        token_data_ids.push(data.token_data_id);
+        token_data_ids.push({
+          name: data?.token_properties?.tick,
+          token_data_id: data.token_data_id,
+        });
 
-        if (!tokenMap[data.token_properties.tick]) {
-          tokenMap[data.token_properties.tick] = 0;
+        if (data.token_properties.amt > 1) {
+          if (!tokenMap[data.token_properties.tick]) {
+            tokenMap[data.token_properties.tick] = 0;
+          }
+
+          tokenMap[data.token_properties.tick] = new BigNumber(
+            tokenMap[data.token_properties.tick] || 0,
+          )
+            .plus(data.token_properties.amt)
+            .toNumber();
         }
-
-        tokenMap[data.token_properties.tick] = new BigNumber(
-          tokenMap[data.token_properties.tick] || 0,
-        )
-          .plus(data.token_properties.amt)
-          .toNumber();
       });
       let data = {
         token_data_ids,
@@ -355,7 +371,7 @@
   };
 
   const gathering = ref(false);
-  const gatherHandler = async () => {
+  const gatherHandler = async (name: string) => {
     if (gathering.value) return;
     if (!privateKeyString.value) {
       return message.error('请填入私钥');
@@ -367,12 +383,18 @@
       let payload: any = { indexs: [], nfts: [] };
 
       subAccountsList.value.forEach((_: string, index: number) => {
-        console.log(nftAmountListWithIndex.value[index]);
         if (nftAmountListWithIndex.value[index]?.token_data_ids?.length > 0) {
-          payload.indexs.push(index);
-          payload.nfts.push(nftAmountListWithIndex.value[index]?.token_data_ids);
+          const dataFilterByName = nftAmountListWithIndex.value[index]?.token_data_ids?.filter(
+            (data: any) => data.name === name,
+          );
+
+          if (dataFilterByName.length !== 0) {
+            payload.indexs.push(index);
+            payload.nfts.push(dataFilterByName.map((_: any) => _.token_data_id));
+          }
         }
       });
+      console.log(payload);
 
       await gatherSubAccount(privateKeyString.value, payload);
       message.success('归集成功');
