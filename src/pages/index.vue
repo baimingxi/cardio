@@ -121,7 +121,7 @@
   const network = import.meta.env.VITE_APP_NETWORK;
 
   const mintArgs = ref<any>({
-    tokenName: '',
+    tokenName: 'APTS',
     mintSubAmountPerAccountInOneEpoch: 0,
     mintSubAccountAmount: 0,
   });
