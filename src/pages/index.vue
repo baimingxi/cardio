@@ -442,7 +442,7 @@
         let payload: any = { indexs: [], nfts: [] };
 
         for (; j <= nfts.length; j++) {
-          totalnftAmount += nfts[j].length;
+          totalnftAmount += nfts[j - 1].length;
           console.log(totalnftAmount);
           if (totalnftAmount > maxArrayAmount) {
             payload.indexs = indexs.slice(i, j - 1);
