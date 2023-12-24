@@ -456,9 +456,9 @@
           }
 
           if (j == nfts.length - 1) {
-            payload.indexs = indexs.slice(i, j - 1);
-            payload.nfts = nfts.slice(i, j - 1);
-            i = j - 1;
+            payload.indexs = indexs.slice(i, j);
+            payload.nfts = nfts.slice(i, j);
+            i = j;
             continueGather = false;
             console.log(payload);
             try {
