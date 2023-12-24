@@ -1,7 +1,10 @@
 <template>
-  <span class="text-red text-xs pb-2">
-    由于官方节点不稳定, 可能数据查询不准确. Mint & 归集可能都存在延迟或者失败. 请稍后重试.
-  </span>
+  <div class="flex-col mb-2">
+    <span class="text-red text-xs">
+      由于官方节点不稳定, 可能数据查询不准确. Mint & 归集可能都存在延迟或者失败. 请稍后重试.
+    </span>
+    <span class="text-red text-xs">已 Mint 的资产都保存于链上, 不会丢失</span>
+  </div>
   <Form layout="vertical">
     <FormItem label="主网钱包私钥">
       <Input v-model:value="privateKeyString" type="password" />
