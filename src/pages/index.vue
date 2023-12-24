@@ -442,19 +442,6 @@
         let payload: any = { indexs: [], nfts: [] };
 
         for (; j <= nfts.length; j++) {
-          totalnftAmount += nfts[j - 1].length;
-          console.log(totalnftAmount);
-          if (totalnftAmount > maxArrayAmount) {
-            payload.indexs = indexs.slice(i, j - 1);
-            payload.nfts = nfts.slice(i, j - 1);
-            i = j - 1;
-            try {
-              await gatherSubAccount(privateKeyString.value, payload);
-              message.success('一批子账户归集成功! 全部归集完毕之后请重新查询子账户列表.');
-            } catch {}
-            break;
-          }
-
           if (j == nfts.length) {
             payload.indexs = indexs.slice(i, j);
             payload.nfts = nfts.slice(i, j);
@@ -465,6 +452,19 @@
               await gatherSubAccount(privateKeyString.value, payload);
               message.success('一批子账户归集成功! 全部归集完毕之后请重新查询子账户列表.');
             } catch {}
+          } else {
+            totalnftAmount += nfts[j].length;
+            console.log(totalnftAmount);
+            if (totalnftAmount > maxArrayAmount) {
+              payload.indexs = indexs.slice(i, j - 1);
+              payload.nfts = nfts.slice(i, j - 1);
+              i = j - 1;
+              try {
+                await gatherSubAccount(privateKeyString.value, payload);
+                message.success('一批子账户归集成功! 全部归集完毕之后请重新查询子账户列表.');
+              } catch {}
+              break;
+            }
           }
         }
       } while (continueGather);
