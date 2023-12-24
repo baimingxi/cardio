@@ -148,9 +148,11 @@ const useContract = () => {
     }
 
     const addr = AccountAddress.fromString(owner).toStringLong();
-    return await axios.post(import.meta.env.VITE_APP_GRAPHQL_ENDPOINT, {
-      opertationName: 'MyQuery',
-      query: `query MyQuery {
+    return await axios.post(
+      import.meta.env.VITE_APP_GRAPHQL_ENDPOINT,
+      {
+        opertationName: 'MyQuery',
+        query: `query MyQuery {
         current_token_datas_v2(
           where: {current_token_ownership: {owner_address: {_eq: "${addr}"}, amount: {_gt: "0"}}}
         ) {
@@ -158,8 +160,12 @@ const useContract = () => {
           token_properties
         }
       }`,
-      variables: {},
-    });
+        variables: {},
+      },
+      {
+        timeout: 1000,
+      },
+    );
   };
 
   return {

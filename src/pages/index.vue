@@ -38,7 +38,7 @@
           class="flex-col flex-1 gap-1 p-4 rounded-2 border-1 bordedr-solid border-accent bg-secondary/10 max-h-100 overflow-y-auto mb-3"
         >
           <span
-            class="flex justify-between w-full hover:bg-secondary/40 transion-all p-2"
+            class="flex justify-between items-center w-full hover:bg-secondary/40 transion-all p-2"
             v-for="(account, index) in subAccountsList"
             :key="index"
           >
@@ -118,7 +118,6 @@
   import { ShortAddress, sleep } from '@/utils';
   import { Button, Form, FormItem, Input, InputNumber, Textarea, message } from 'ant-design-vue';
   import BigNumber from 'bignumber.js';
-  import { Promise } from 'bluebird';
   import dayjs from 'dayjs';
 
   const logs = ref<string[]>([]);
@@ -340,13 +339,17 @@
     return NFTMap;
   });
   const nftsAmountOfAddress = async () => {
-    const result: any = await Promise.map(
-      subAccountsList.value,
-      (subAccountAddress: string) => {
-        return getOwnersNFTs(subAccountAddress);
-      },
-      { concurrency: 10 },
-    );
+    let result: any[] = [];
+    for (const subAccountAddress of subAccountsList.value) {
+      try {
+        const r: any = await getOwnersNFTs(subAccountAddress);
+        await sleep(100);
+        result.push(r);
+      } catch (e) {
+        result.push({});
+      }
+    }
+
     nftAmountListWithIndex.value = result.reduce((prev: any, current: any) => {
       let token_data_ids: any[] = [];
       let tokenMap: any = {};
