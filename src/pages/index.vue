@@ -42,13 +42,16 @@
             v-for="(account, index) in subAccountsList"
             :key="index"
           >
-            <a
-              class="underline"
-              target="_blank"
-              :href="`https://explorer.aptoslabs.com/account/${account}?network=${network}`"
-            >
-              {{ account }}
-            </a>
+            <div class="flex gap-2 items-center">
+              <!-- <Button @click="nftOfsingleAddress(account)" :loading="checking">单独查询</Button> -->
+              <a
+                class="underline"
+                target="_blank"
+                :href="`https://explorer.aptoslabs.com/account/${account}?network=${network}`"
+              >
+                {{ account }}
+              </a>
+            </div>
             <div class="flex-col">
               <span
                 v-for="(ticker, tid) in Object.keys(nftAmountListWithIndex[index]?.tokenMap || {})"
@@ -69,11 +72,13 @@
     </div>
 
     <FormItem label="" v-if="subAccountsList.length > 0">
-      <span>一键归集所有子账号铭文到主帐号</span>
+      <span>
+        一键归集所有子账号铭文到主帐号(操作后请重新查询子账户列表.否则可能会出现归集报错.但不会影响资产)
+      </span>
       <div class="flex flex-wrap gap-2">
         <Button
           @click="gatherHandler(name)"
-          :loading="gathering"
+          :loading="gathering || checking"
           v-for="name in Object.keys(nftAmountSummary)"
           :key="name"
         >
@@ -338,28 +343,22 @@
 
     return NFTMap;
   });
-  const nftsAmountOfAddress = async () => {
-    let result: any[] = [];
-    for (const subAccountAddress of subAccountsList.value) {
-      try {
-        const r: any = await getOwnersNFTs(subAccountAddress);
-        await sleep(100);
-        result.push(r);
-      } catch (e) {
-        result.push({});
-      }
-    }
 
-    nftAmountListWithIndex.value = result.reduce((prev: any, current: any) => {
-      let token_data_ids: any[] = [];
-      let tokenMap: any = {};
-      current?.data?.current_token_datas_v2.forEach((data: any) => {
-        token_data_ids.push({
-          name: data?.token_properties?.tick,
-          token_data_id: data.token_data_id,
-        });
+  const nftOfsingleAddress = async (address: string) => {
+    let index = subAccountsList.value.indexOf(address);
+    var token_data_ids: any[] = [];
+    var tokenMap: any = {};
 
+    if (index > -1) {
+      const r: any = await getOwnersNFTs(address);
+
+      r?.data?.current_token_datas_v2.forEach((data: any) => {
         if (data.token_properties.amt > 1) {
+          token_data_ids.push({
+            name: data?.token_properties?.tick,
+            token_data_id: data.token_data_id,
+          });
+
           if (!tokenMap[data.token_properties.tick]) {
             tokenMap[data.token_properties.tick] = 0;
           }
@@ -371,25 +370,49 @@
             .toNumber();
         }
       });
-      let data = {
-        token_data_ids,
-        tokenMap,
-      };
-      return [...prev, data];
-    }, []);
+    }
+    return {
+      token_data_ids,
+      tokenMap,
+    };
+  };
+
+  const nftsAmountOfAddress = async () => {
+    nftAmountListWithIndex.value = [];
+    for (const subAccountAddress of subAccountsList.value) {
+      let token_data_ids: any[] = [];
+      let tokenMap: any = {};
+      await sleep(100);
+
+      try {
+        const data = await nftOfsingleAddress(subAccountAddress);
+        nftAmountListWithIndex.value[subAccountsList.value.indexOf(subAccountAddress)] = data;
+      } catch (e) {
+        console.log(e);
+        nftAmountListWithIndex.value[subAccountsList.value.indexOf(subAccountAddress)] = {
+          token_data_ids,
+          tokenMap,
+        };
+      }
+    }
   };
 
   const gathering = ref(false);
+  const maxArrayAmount = 500;
   const gatherHandler = async (name: string) => {
     if (gathering.value) return;
     if (!privateKeyString.value) {
       return message.error('请填入私钥');
     }
 
+    if (subAccountsList.value.length == 0) {
+      return message.error('请先查询子账户');
+    }
+
     try {
       gathering.value = true;
-
-      let payload: any = { indexs: [], nfts: [] };
+      let indexs: any = [];
+      let nfts: any = [];
 
       subAccountsList.value.forEach((_: string, index: number) => {
         if (nftAmountListWithIndex.value[index]?.token_data_ids?.length > 0) {
@@ -398,15 +421,55 @@
           );
 
           if (dataFilterByName.length !== 0) {
-            payload.indexs.push(index);
-            payload.nfts.push(dataFilterByName.map((_: any) => _.token_data_id));
+            indexs.push(index);
+            nfts.push(dataFilterByName.map((_: any) => _.token_data_id));
           }
         }
       });
-      console.log(payload);
 
-      await gatherSubAccount(privateKeyString.value, payload);
-      message.success('归集成功');
+      // batch gather sub account nfts
+      // by nfts account maximum 500
+      let i = 0;
+      let continueGather = true;
+      do {
+        if (typeof indexs[i] == 'undefined' || !nfts[i]) {
+          continueGather = false;
+          break;
+        }
+
+        let totalnftAmount = 0;
+        let j = i;
+        let payload: any = { indexs: [], nfts: [] };
+
+        for (; j < nfts.length; j++) {
+          totalnftAmount += nfts[j].length;
+          console.log(totalnftAmount);
+          if (totalnftAmount > maxArrayAmount) {
+            payload.indexs = indexs.slice(i, j - 1);
+            payload.nfts = nfts.slice(i, j - 1);
+            i = j - 1;
+            try {
+              await gatherSubAccount(privateKeyString.value, payload);
+              message.success('一批子账户归集成功! 全部归集完毕之后请重新查询子账户列表.');
+            } catch {}
+            break;
+          }
+
+          if (j == nfts.length - 1) {
+            payload.indexs = indexs.slice(i, j - 1);
+            payload.nfts = nfts.slice(i, j - 1);
+            i = j - 1;
+            continueGather = false;
+            console.log(payload);
+            try {
+              await gatherSubAccount(privateKeyString.value, payload);
+              message.success('一批子账户归集成功! 全部归集完毕之后请重新查询子账户列表.');
+            } catch {}
+          }
+        }
+      } while (continueGather);
+
+      message.success('归集操作完成. 自动重新查询子账户资产');
       checkSubAccountHandler();
     } catch (e: any) {
       message.error(e.message);
